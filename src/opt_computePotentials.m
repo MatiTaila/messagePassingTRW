@@ -1,73 +1,46 @@
-function [weights, unary, idx] = opt_computePotentials(imL,imR,L,alpha,beta,lmda,K)
-
-PLOT = 0;
-
-imL = double(imL);
-imR = double(imR);
+function [uh, uv, pwh, pwv] = opt_computePotentials(imL, imR, nLabs, lmda, K)
+% -------------------------------------------------------------------------
+% function [uh, uv, pwh, pwv] = opt_computePotentials(imL, imR, nLabs,
+%   lmda, K);
+% -------------------------------------------------------------------------
+% Unary potentials: array (M x N x nLabs) whith the unary potentials of all
+% nodes taking all possible labels. Entry u(i,j,k) is the unary potential
+% of pixel (i,j) taking the label k.
+% uh = zeros(M,N,nLabs);
+% uv = zeros(M,N,nLabs);
+% -------------------------------------------------------------------------
+% Pairwise potentials: array (nLabs x nLabs x nNodes). Note that nNodes is
+% MxN. The entry pw(i,j,k) is the pairwise potential between nodes k and
+% k+1, where node k takes the label i and node k+1 takes the label j. In
+% order to be able to define an order k->k+1 we need to keep 2 arrays, one
+% for the horizontal passing and one for the vertical.
+% pwh = zeros(nLabs,nLabs,M*N);
+% pwv = zeros(nLabs,nLabs,M*N);
+% -------------------------------------------------------------------------
 
 [M,N] = size(imL);
-nNei  = 4;
 
-% All nodes in image
-idx = 1:M*N;
-
-% Take out borders form idx
-borders = [1:15*M M+1:M:(N-2)*M+1 (N-1)*M+1:N*M 2*M:M:(N-1)*M];
-idx(borders)=[];
-
-% Filter to keep only nodes with label alpha or beta
-onlyAlphaBeta = (L(idx)==alpha) | (L(idx)==beta);
-idx = idx(onlyAlphaBeta);
-
-% Final quantity of nodes
-nNodes = length(idx);
-
-% Find neighbors belonging to alpha or beta
-nodes     = repmat(1:nNodes,nNei,1);      nodes     = nodes(:);
-neighbors = [idx-1; idx+1; idx-M; idx+M]; neighbors = neighbors(:);
-[keep,v2b] = ismember(neighbors,idx);
-v1 = nodes(keep);
-v2 = v2b(keep);
-
-i=idx(v1);
-j=idx(v2);
-s = lmda*(1 + (abs(imL(i)-imL(j))<=8));
-
-% Build the weights sparse matrix
-weights = sparse(v1,v2,s,nNodes,nNodes); 
-
-% Neighbors that are not in alpha or beta
-v1n = nodes(~keep)';
-v2n = neighbors(~keep);
-
-tAlpha = zeros(1,nNodes);
-tBeta  = zeros(1,nNodes);
-for k=1:length(v1n)
-    tAlpha(v1n(k))=tAlpha(v1n(k))+min(abs(alpha-L(v2n(k))),K);
-    tBeta(v1n(k))=tBeta(v1n(k))+min(abs(beta-L(v2n(k))),K);
+% Pairwise potentials
+Vpq = K*ones(nLabs);
+Vpq = Vpq-diag(K*ones(nLabs,1));
+for i=1:K-1
+    Vpq = Vpq-diag((K-i)*ones(nLabs-i,1),i);
+    Vpq = Vpq-diag((K-i)*ones(nLabs-i,1),-i);
 end
+Vpqh = repmat(Vpq,[1 1 M*N]);
+Vpqv = repmat(Vpq,[1 1 M*N]);
 
-% Compute unary potentials
-alphaInds = idx-alpha*M;
-betaInds  = idx-beta*M; 
+wpqh = 1 + (abs([imL(:,2:N)-imL(:,1:N-1) zeros(M,1)])<=8);
+wpqv = 1 + (abs([imL(2:M,:)-imL(1:M-1,:);zeros(1,N)])<=8);
 
-unary = [ abs(imL(idx)-imR(alphaInds)) + tAlpha;...
-    abs(imL(idx)-imR(betaInds)) + tBeta ];
+pwh = lmda*permute(repmat(wpqh(:),[1,nLabs,nLabs]),[2 3 1]).*Vpqh;
+pwv = lmda*permute(repmat(wpqv(:),[1,nLabs,nLabs]),[2 3 1]).*Vpqv;
 
-if PLOT
-    %%
-    figure(100);
-    clf
-    imagesc(L)
-    colormap gray
-    hold on
-    count = 0;
-    for k=1:length(i)
-        [p1(2),p1(1)] = ind2sub([M N],i(k));
-        [p2(2),p2(1)] = ind2sub([M N],j(k));
-        line([p1(1) p2(1)],[p1(2) p2(2)])
-        plot(p1(1),p1(2),'*')
-        count = count+((L(p1(1),p1(2))==alpha) | (L(p1(1),p1(2))==beta));
-    end
-%%    
+% Unary potentials
+uh = zeros(M,N,nLabs);
+uv = zeros(M,N,nLabs);
+for i=1:nLabs
+    d = i-1;
+    uh(:,:,i) = abs(imL - [zeros(M,d) imR(:,1:end-d)]);
+    uv(:,:,i) = abs(imL - [zeros(d,N);imR(1:end-d,:)]);
 end
