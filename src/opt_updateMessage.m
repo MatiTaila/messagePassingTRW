@@ -1,6 +1,6 @@
-function m = opt_updateMessage(m,u,pw)
+function m = opt_updateMessage(m,u,pwbar,gamma)
 % -------------------------------------------------------------------------
-% function m = updateMessage(m,u,pw)
+% function m = updateMessage(m,u,pw,gamma)
 % -------------------------------------------------------------------------
 % Computes the update of the message m_{st}. Node s and t are such that s<t
 % and the edge s->t is in the set of edges E. In our setting this only
@@ -22,5 +22,5 @@ function m = opt_updateMessage(m,u,pw)
 
 nLabels = size(m,1);
 for k=1:nLabels
-    m(k) = min( u + pw(:,k) );
+    m(k) = min( gamma*u + pwbar(:,k) );
 end

@@ -38,9 +38,8 @@ pwv = lmda*permute(repmat(wpqv(:),[1,nLabs,nLabs]),[2 3 1]).*Vpqv;
 
 % Unary potentials
 uh = zeros(M,N,nLabs);
-uv = zeros(M,N,nLabs);
 for i=1:nLabs
     d = i-1;
     uh(:,:,i) = abs(imL - [zeros(M,d) imR(:,1:end-d)]);
-    uv(:,:,i) = abs(imL - [zeros(d,N);imR(1:end-d,:)]);
 end
+uv = uh;
